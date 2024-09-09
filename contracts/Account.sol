@@ -7,7 +7,12 @@ import "@account-abstraction/contracts/core/EntryPoint.sol";
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
 
 contract Account is IAccount {
-    constructor() {}
+    uint public count;
+    address public owner;
+
+    constructor(address _owner) {
+        owner = _owner;
+    }
 
     function validateUserOp(
         UserOperation calldata,
@@ -15,5 +20,16 @@ contract Account is IAccount {
         uint256
     ) external pure override returns (uint256 validationData) {
         return 0;
+    }
+
+    function execute() external {
+        count++;
+    }
+}
+
+
+contract AccountFactory {
+    constructor() {
+        
     }
 }
