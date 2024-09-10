@@ -2,9 +2,10 @@
 pragma solidity ^0.8.24;
 
 // Uncomment this line to use console.log
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 import "@account-abstraction/contracts/core/EntryPoint.sol";
 import "@account-abstraction/contracts/interfaces/IAccount.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @title a smart contract account.
@@ -25,11 +26,16 @@ contract Account is IAccount {
 
     // Validates user operation.
     function validateUserOp(
-        UserOperation calldata,
-        bytes32,
+        UserOperation calldata userOp,
+        bytes32 userOpHash,
         uint256
-    ) external pure override returns (uint256 validationData) {
-        return 0;
+    ) external view override returns (uint256 validationData) {
+        address recovered = ECDSA.recover(
+            ECDSA.toEthSignedMessageHash(userOpHash),
+            userOp.signature
+        ); 
+        
+        return owner == recovered ? 0 : 1;
     }
 
     function execute() external {
