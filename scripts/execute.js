@@ -21,20 +21,20 @@ async function main() {
   const address0 = await signer0.getAddress();
 
   // Use 0x if we are not creating a new account else create a functional init code.
-  const initCode = //"0x"
-    FACTORY_ADDRESS +
-    AccountFactory.interface
-      .encodeFunctionData("createAccount", [address0])
-      .slice(2);
+  const initCode = "0x"
+    // FACTORY_ADDRESS +
+    // AccountFactory.interface
+    //   .encodeFunctionData("createAccount", [address0])
+    //   .slice(2);
 
   const Account = await hre.ethers.getContractFactory("Account");
 
   // pre-fund the entry point for the contract call.
   //   We can check for the balance of the address if to see if there is enough funds in the entry point to check for the gass fees
   // call balanceOf(address) pass the address of the smart account.
-  await entryPoint.depositTo(PM_ADDRESS, {
-    value: hre.ethers.parseEther("1000"),
-  });
+  // await entryPoint.depositTo(PM_ADDRESS, {
+  //   value: hre.ethers.parseEther("1000"),
+  // });
 
   console.log("sender ==>", sender);
 
