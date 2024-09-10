@@ -15,7 +15,7 @@ async function main() {
     const pm = await hre.ethers.deployContract("Paymaster");
     await pm.waitForDeployment();
 
-    console.log(`PM deployed to ${ep.target}`)
+    console.log(`PM deployed to ${pm.target}`)
 }
 
 main().catch((error) => {
