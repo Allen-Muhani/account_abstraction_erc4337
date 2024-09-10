@@ -21,11 +21,11 @@ async function main() {
   const address0 = await signer0.getAddress();
 
   // Use 0x if we are not creating a new account else create a functional init code.
-  const initCode = "0x"
-    // FACTORY_ADDRESS +
-    // AccountFactory.interface
-    //   .encodeFunctionData("createAccount", [address0])
-    //   .slice(2);
+  const initCode = "0x";
+  // FACTORY_ADDRESS +
+  // AccountFactory.interface
+  //   .encodeFunctionData("createAccount", [address0])
+  //   .slice(2);
 
   const Account = await hre.ethers.getContractFactory("Account");
 
@@ -36,7 +36,7 @@ async function main() {
   //   value: hre.ethers.parseEther("1000"),
   // });
 
-  console.log("sender ==>", sender);
+  console.log("sender ===>", sender);
 
   const userOp = {
     sender, //Address of the account smart contract to be used/created .
@@ -53,7 +53,7 @@ async function main() {
   };
 
   const userOpHash = await entryPoint.getUserOpHash(userOp);
-  console.log("USER OP HASH => ", userOpHash)
+  console.log("USER OP HASH => ", userOpHash);
   userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
 
   const tx = await entryPoint.handleOps([userOp], address0);
