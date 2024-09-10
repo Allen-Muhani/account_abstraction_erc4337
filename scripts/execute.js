@@ -21,11 +21,11 @@ async function main() {
   const address0 = await signer0.getAddress();
 
   // Use 0x if we are not creating a new account else create a functional init code.
-  const initCode = "0x"
-    // FACTORY_ADDRESS +
-    // AccountFactory.interface
-    //   .encodeFunctionData("createAccount", [address0])
-    //   .slice(2);
+  const initCode = //"0x"
+    FACTORY_ADDRESS +
+    AccountFactory.interface
+      .encodeFunctionData("createAccount", [address0])
+      .slice(2);
 
   const Account = await hre.ethers.getContractFactory("Account");
 
