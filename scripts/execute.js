@@ -2,64 +2,94 @@
 
 const hre = require("hardhat");
 
-const FACTORY_NONCE = 1;
-
-const FACTORY_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const EP_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-const PM_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+const FACTORY_ADDRESS = "0x7bEC6f9C8F855AaeB5036346a1B8a1a3f16BffDB";
+const EP_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+const PM_ADDRESS = "0xA68DAb77797901C0ec0f53A225E2eB3Eb9643e6f";
 
 async function main() {
   const entryPoint = await hre.ethers.getContractAt("EntryPoint", EP_ADDRESS);
-
-  const sender = hre.ethers.getCreateAddress({
-    from: FACTORY_ADDRESS,
-    nonce: FACTORY_NONCE,
-  });
 
   const AccountFactory = await hre.ethers.getContractFactory("AccountFactory");
   const [signer0] = await hre.ethers.getSigners();
   const address0 = await signer0.getAddress();
 
-  // Use 0x if we are not creating a new account else create a functional init code.
-  const initCode = "0x";
-  // FACTORY_ADDRESS +
-  // AccountFactory.interface
-  //   .encodeFunctionData("createAccount", [address0])
-  //   .slice(2);
+  let initCode =
+    FACTORY_ADDRESS +
+    AccountFactory.interface
+      .encodeFunctionData("createAccount", [address0])
+      .slice(2);
 
-  const Account = await hre.ethers.getContractFactory("Account");
+  let sender;
+  try {
+    await entryPoint.getSenderAddress(initCode);
+  } catch (error) {
+    sender = "0x" + error.data.slice(-40);
+  }
 
-  // pre-fund the entry point for the contract call.
-  //   We can check for the balance of the address if to see if there is enough funds in the entry point to check for the gass fees
-  // call balanceOf(address) pass the address of the smart account.
-  // await entryPoint.depositTo(PM_ADDRESS, {
-  //   value: hre.ethers.parseEther("1000"),
-  // });
+  const code = await hre.ethers.provider.getCode(sender);
+
+  if (code != "0x") {
+    initCode = "0x";
+  }
 
   console.log("sender ===>", sender);
 
+  const Account = await hre.ethers.getContractFactory("Account");
+
   const userOp = {
     sender, //Address of the account smart contract to be used/created .
-    nonce: await entryPoint.getNonce(sender, 0),
+    nonce: "0x" + (await entryPoint.getNonce(sender, 0)).toString(16),
     initCode,
     callData: Account.interface.encodeFunctionData("execute"),
-    callGasLimit: 400_000, // OOG means out of gass
-    verificationGasLimit: 800_000,
-    preVerificationGas: 100_000,
-    maxFeePerGas: hre.ethers.parseUnits("10", "gwei"),
-    maxPriorityFeePerGas: hre.ethers.parseUnits("5", "gwei"),
     paymasterAndData: PM_ADDRESS,
-    signature: "0x", // generate this from smart contract making it unique for security reasons. (prevents repeat attacks.)
+
+    // use a dummy signature from Alchemy API.
+    signature:
+      "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c", // generate this from smart contract making it unique for security reasons. (prevents repeat attacks.)
   };
 
+  const result = await hre.ethers.provider.send(
+    "eth_estimateUserOperationGas",
+    [userOp, EP_ADDRESS]
+  );
+
+  userOp.callGasLimit = result.callGasLimit; // OOG means out of gass
+  userOp.verificationGasLimit = result.verificationGasLimit;
+  userOp.preVerificationGas = result.preVerificationGas;
+
+  const { maxFeePerGas } = await hre.ethers.provider.getFeeData();
+  userOp.maxFeePerGas = "0x" + maxFeePerGas.toString(16);
+
+  const maxPriorityFeePerGas = await hre.ethers.provider.send(
+    "rundler_maxPriorityFeePerGas"
+  );
+  userOp.maxPriorityFeePerGas = maxPriorityFeePerGas;
+
   const userOpHash = await entryPoint.getUserOpHash(userOp);
-  console.log("USER OP HASH => ", userOpHash);
+  // set signature generated from user op data in the EP smart contract.
   userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
 
-  const tx = await entryPoint.handleOps([userOp], address0);
-  const receipt = await tx.wait();
+  const opHash = await hre.ethers.provider.send("eth_sendUserOperation", [
+    userOp,
+    EP_ADDRESS,
+  ]);
 
-  console.log(receipt);
+  console.log("USER OP HASH => ", userOpHash);
+
+   // Wait for transaction to be included in the blockchain.
+  setTimeout(async () => {
+    const userOpDataByHash = await hre.ethers.provider.send(
+      "eth_getUserOperationByHash",
+      [opHash]
+    );
+
+    console.log(userOpDataByHash, userOpDataByHash.transactionHash);
+  }, 5000);
+
+  // const tx = await entryPoint.handleOps([userOp], address0);
+  // const receipt = await tx.wait();
+
+  // console.log(receipt);
 }
 
 main().catch((error) => {
