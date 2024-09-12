@@ -72,6 +72,27 @@ contract AccountFactory {
         }
 
         // deploy the contract hence adding the bytcode in the address.
-        return Create2.deploy(0, salt, bytecode);
+        return deploy(0, salt, bytecode);
+    }
+
+    function deploy(
+        uint256 amount,
+        bytes32 salt,
+        bytes memory bytecode
+    ) internal returns (address) {
+        address addr;
+
+        //  To prevent this error (ProviderError: factory uses banned opcode: SELFBALANCE)
+           // Do not check smart account balance.
+        // require(
+        //     address(this).balance >= amount,
+        //     "Create2: insufficient balance"
+        // );
+        require(bytecode.length != 0, "Create2: bytecode length is zero");
+        assembly {
+            addr := create2(amount, add(bytecode, 0x20), mload(bytecode), salt)
+        }
+        require(addr != address(0), "Create2: Failed on deploy");
+        return addr;
     }
 }

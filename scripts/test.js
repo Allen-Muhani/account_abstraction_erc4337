@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 
-const ACCOUNT_ADDRESS = "0x61554a3c02d91f4305f0b1b714b3d39ebe5bdacd";
+const ACCOUNT_ADDRESS = "0x642b659f1aece194a5b7d08d8795078a538a989a";
 
 async function main() {
   // Check if count state on the account smart contract is being updated.

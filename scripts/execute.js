@@ -2,7 +2,7 @@
 
 const hre = require("hardhat");
 
-const FACTORY_ADDRESS = "0x9fdaad34a2Af6974e9cCEd8f9E44CD622Db6699c";
+const FACTORY_ADDRESS = "0x7bEC6f9C8F855AaeB5036346a1B8a1a3f16BffDB";
 const EP_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 const PM_ADDRESS = "0xA68DAb77797901C0ec0f53A225E2eB3Eb9643e6f";
 
@@ -48,29 +48,48 @@ async function main() {
       "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c", // generate this from smart contract making it unique for security reasons. (prevents repeat attacks.)
   };
 
+  const result = await hre.ethers.provider.send(
+    "eth_estimateUserOperationGas",
+    [userOp, EP_ADDRESS]
+  );
 
-  const rsp = await hre.ethers.provider.send("eth_estimateUserOperationGas", [
+  userOp.callGasLimit = result.callGasLimit; // OOG means out of gass
+  userOp.verificationGasLimit = result.verificationGasLimit;
+  userOp.preVerificationGas = result.preVerificationGas;
+
+  const { maxFeePerGas } = await hre.ethers.provider.getFeeData();
+  userOp.maxFeePerGas = "0x" + maxFeePerGas.toString(16);
+
+  const maxPriorityFeePerGas = await hre.ethers.provider.send(
+    "rundler_maxPriorityFeePerGas"
+  );
+  userOp.maxPriorityFeePerGas = maxPriorityFeePerGas;
+
+  const userOpHash = await entryPoint.getUserOpHash(userOp);
+  // set signature generated from user op data in the EP smart contract.
+  userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
+
+  const opHash = await hre.ethers.provider.send("eth_sendUserOperation", [
     userOp,
     EP_ADDRESS,
   ]);
 
-  console.log(rsp);
-
-  // callGasLimit: 400_000, // OOG means out of gass
-  // verificationGasLimit: 800_000,
-  // preVerificationGas: 100_000,
-  // maxFeePerGas: hre.ethers.parseUnits("10", "gwei"),
-  // maxPriorityFeePerGas: hre.ethers.parseUnits("5", "gwei"),
-
-  const userOpHash = await entryPoint.getUserOpHash(userOp);
   console.log("USER OP HASH => ", userOpHash);
-  // set signature generated from user op data in the EP smart contract.
-  userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
 
-  const tx = await entryPoint.handleOps([userOp], address0);
-  const receipt = await tx.wait();
+   // Wait for transaction to be included in the blockchain.
+  setTimeout(async () => {
+    const userOpDataByHash = await hre.ethers.provider.send(
+      "eth_getUserOperationByHash",
+      [opHash]
+    );
 
-  console.log(receipt);
+    console.log(userOpDataByHash, userOpDataByHash.transactionHash);
+  }, 5000);
+
+  // const tx = await entryPoint.handleOps([userOp], address0);
+  // const receipt = await tx.wait();
+
+  // console.log(receipt);
 }
 
 main().catch((error) => {
