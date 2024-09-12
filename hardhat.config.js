@@ -3,10 +3,10 @@ require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  defaultNetwork: "localhost",
+  defaultNetwork: "arb",
   networks: {
     arb: {
-      url: process.env.RPC_URL,
+      url: 'https://sepolia-rollup.arbitrum.io/rpc',
       accounts: [process.env.PRIVATE_KEY],
     },
   },
