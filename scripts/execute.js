@@ -2,8 +2,6 @@
 
 const hre = require("hardhat");
 
-const FACTORY_NONCE = 1;
-
 const FACTORY_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const EP_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 const PM_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
@@ -11,32 +9,32 @@ const PM_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
 async function main() {
   const entryPoint = await hre.ethers.getContractAt("EntryPoint", EP_ADDRESS);
 
-  const sender = hre.ethers.getCreateAddress({
-    from: FACTORY_ADDRESS,
-    nonce: FACTORY_NONCE,
-  });
-
   const AccountFactory = await hre.ethers.getContractFactory("AccountFactory");
   const [signer0] = await hre.ethers.getSigners();
   const address0 = await signer0.getAddress();
 
-  // Use 0x if we are not creating a new account else create a functional init code.
-  const initCode = "0x";
-  // FACTORY_ADDRESS +
-  // AccountFactory.interface
-  //   .encodeFunctionData("createAccount", [address0])
-  //   .slice(2);
+  let initCode =
+    FACTORY_ADDRESS +
+    AccountFactory.interface
+      .encodeFunctionData("createAccount", [address0])
+      .slice(2);
 
-  const Account = await hre.ethers.getContractFactory("Account");
+  let sender;
+  try {
+    await entryPoint.getSenderAddress(initCode);
+  } catch (error) {
+    sender = "0x" + error.data.data.slice(-40);
+  }
 
-  // pre-fund the entry point for the contract call.
-  //   We can check for the balance of the address if to see if there is enough funds in the entry point to check for the gass fees
-  // call balanceOf(address) pass the address of the smart account.
-  // await entryPoint.depositTo(PM_ADDRESS, {
-  //   value: hre.ethers.parseEther("1000"),
-  // });
+  const code = await hre.ethers.provider.getCode(sender);
+
+  if (code != "0x") {
+    initCode = "0x";
+  }
 
   console.log("sender ===>", sender);
+
+  const Account = await hre.ethers.getContractFactory("Account");
 
   const userOp = {
     sender, //Address of the account smart contract to be used/created .
@@ -54,6 +52,7 @@ async function main() {
 
   const userOpHash = await entryPoint.getUserOpHash(userOp);
   console.log("USER OP HASH => ", userOpHash);
+  // set signature generated from user op data in the EP smart contract.
   userOp.signature = await signer0.signMessage(hre.ethers.getBytes(userOpHash));
 
   const tx = await entryPoint.handleOps([userOp], address0);
